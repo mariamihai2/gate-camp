@@ -20,10 +20,15 @@
       <span class="brand-sub">logic circuits workbench</span>
     </div>
   </div>
+  <div class="user-badge" id="user-badge">
+    <span class="user-label">You:</span>
+    <button type="button" id="user-name-btn" class="user-name-btn">set your name</button>
+  </div>
   <nav class="tabs" role="tablist">
     <button class="tab active" data-tab="workbench" role="tab" aria-selected="true">01 · Workbench</button>
     <button class="tab" data-tab="board" role="tab" aria-selected="false">02 · The Board</button>
     <button class="tab" data-tab="guide" role="tab" aria-selected="false">03 · Field Guide</button>
+    <button class="tab" data-tab="extra" role="tab" aria-selected="false">04 · Extra Time</button>
   </nav>
 </header>
 
@@ -35,17 +40,17 @@
 
     <aside class="palette" aria-label="Component palette">
       <h2 class="panel-heading">Components</h2>
-      <p class="panel-hint">Click to place a gate on the board, then drag from a pin (●) to a pin to wire it up.</p>
+      <p class="panel-hint">Click a gate to drop it on the canvas. Drag from one pin (●) to another to wire.</p>
       <div class="palette-grid">
-        <button class="gate-btn" data-gate="AND">
+        <button class="gate-btn" data-wb="main" data-gate="AND">
           <svg viewBox="0 0 60 40" class="gate-icon"><path d="M6 4 H28 A16 16 0 0 1 28 36 H6 Z" /></svg>
           AND
         </button>
-        <button class="gate-btn" data-gate="OR">
+        <button class="gate-btn" data-wb="main" data-gate="OR">
           <svg viewBox="0 0 60 40" class="gate-icon"><path d="M6 4 Q20 4 30 20 Q20 36 6 36 Q14 20 6 4 Z" /></svg>
           OR
         </button>
-        <button class="gate-btn" data-gate="NOT">
+        <button class="gate-btn" data-wb="main" data-gate="NOT">
           <svg viewBox="0 0 60 40" class="gate-icon"><path d="M6 4 L34 20 L6 36 Z" /><circle cx="40" cy="20" r="5" fill="none" stroke="currentColor" stroke-width="3"/></svg>
           NOT
         </button>
@@ -55,7 +60,7 @@
         <h3>House rules</h3>
         <ul>
           <li>No constant TRUE / FALSE source — only <b>A</b> and <b>B</b>.</li>
-          <li>No dangling wires. Every gate input needs a real connection before it will carry a signal.</li>
+          <li>No dangling wires. Every gate input has to be hooked up to something real.</li>
           <li>A wire can fan out to feed more than one input.</li>
         </ul>
       </div>
@@ -66,7 +71,7 @@
     <div class="canvas-wrap">
       <div class="canvas-toolbar">
         <div class="switches">
-          <span class="switches-label">Click the A / B pill on the canvas to flip signals and watch it light up</span>
+          <span class="switches-label">Click A or B on the canvas to flip signals</span>
         </div>
         <div class="status" id="status-msg">Build a circuit to see its truth table.</div>
         <button id="delete-selected-btn" class="ghost-btn small" disabled>Delete selected</button>
@@ -84,10 +89,9 @@
         Pattern: <span id="pattern-code">????</span>
       </div>
       <div class="submit-block">
-        <label for="student-name">Name (optional)</label>
-        <input id="student-name" type="text" placeholder="Team Fibonacci" maxlength="24">
+        <p class="submit-as">Submitting as <strong id="submit-as-name">—</strong></p>
         <button id="submit-btn" class="primary-btn" disabled>Submit to the Board</button>
-        <p id="submit-hint" class="panel-hint">Finish wiring every gate input to enable submitting.</p>
+        <p id="submit-hint" class="panel-hint">Wire every gate input before you can submit.</p>
       </div>
     </aside>
 
@@ -99,7 +103,7 @@
   <div class="board-header">
     <div>
       <h2 class="panel-heading">The Board — 16 functions of 2 variables</h2>
-      <p class="panel-hint">Every function of A and B has exactly one row-pattern below. Find a circuit, submit it, claim the slot. There's room for more than one solution per slot — the board keeps a gallery.</p>
+      <p class="panel-hint">Each card is one of the 16 two-input functions. Find a circuit, submit it — your name shows up on the card. Multiple people can claim the same slot.</p>
     </div>
     <button id="reset-board-btn" class="ghost-btn">Reset board (instructor)</button>
   </div>
@@ -109,38 +113,138 @@
 <!-- ===================== GUIDE ===================== -->
 <section id="panel-guide" class="panel">
   <div class="guide-wrap">
-    <h2 class="panel-heading">Field guide &amp; extensions</h2>
+    <h2 class="panel-heading">Field guide</h2>
 
     <article>
       <h3>Running the session (~20 min intro)</h3>
-      <p>Introduce AND, OR, NOT and the idea that a wire can <em>fan out</em> — one signal, copied to feed several gates. Build one function together as a group (XOR is a good pick, or one of the NAND/NOR family) and state, without proof, that circuits built from these three gates can realize <em>any</em> Boolean function of any number of variables.</p>
+      <p>Start with AND, OR, NOT and fan-out — one signal can branch and feed several gates. Build one nontrivial function together (XOR works well). Tell them, without proving it yet, that these three gates are enough to build <em>any</em> Boolean function.</p>
     </article>
 
     <article>
       <h3>The main event</h3>
-      <p>There are 16 Boolean functions of two variables. Send everyone to the Workbench to hunt for circuits. As each function falls, it gets submitted to the Board. A typical class lands somewhere around 13 of the 16 — a few of the stragglers (looking at you, constant TRUE and constant FALSE) take real cleverness once you're not allowed a free constant gate or a dangling wire.</p>
+      <p>There are 16 Boolean functions of two variables. Everyone hunts in the Workbench; solved ones go on the Board. Most groups land around 13/16 in an hour. The constants (all-0 and all-1) are usually last — that's normal, they're supposed to be annoying.</p>
     </article>
 
     <article>
-      <h3>Scaling up if it's going fast</h3>
+      <h3>If they're flying through it</h3>
       <ul>
-        <li><b>Three variables.</b> There are 256 functions of three variables — nobody needs to find all of them, but ask for a specific handful: majority vote, "exactly one is true," a 1-bit full adder's carry-out.</li>
-        <li><b>Completeness, for real this time.</b> Ask the class to sketch why AND/OR/NOT can build <em>any</em> truth table — the disjunctive normal form idea (OR together one AND-term per row where the output is 1) falls out naturally once they've been hand-building circuits for an hour.</li>
-        <li><b>Laws of circuits.</b> De Morgan's laws (NOT(A AND B) = (NOT A) OR (NOT B), and its dual), associativity and distributivity of AND/OR, double negation. Have them verify a law by building both sides and checking the truth tables agree.</li>
-        <li><b>Minimality.</b> Which of the 16 functions can be built with the fewest gates? Is NAND alone enough for everything? (Yes — that's worth a "why" discussion.)</li>
+        <li><b>Three variables.</b> Head to tab 04 · Extra Time — six specific targets, not all 256.</li>
+        <li><b>Completeness.</b> Ask why AND/OR/NOT can build any truth table. Someone will usually stumble onto the DNF idea on their own.</li>
+        <li><b>De Morgan, minimality, NAND-only.</b> Good stretch questions if you have time left.</li>
       </ul>
     </article>
 
     <article>
-      <h3>Using this tool live</h3>
-      <p>The Board is stored per-browser. For a single shared classroom display, keep one browser tab open on the projector's machine and have students call out or walk up to submit — or open the Workbench on their own laptops and just narrate their pattern and gate count to whoever is driving the Board. There's no server behind this, on purpose: it's a static page, easy to host and easy to trust.</p>
+      <h3>Using this in a classroom</h3>
+      <p>The Board lives in your browser's storage — no server, no accounts. Easiest setup: one machine on the projector runs the Board; students build on their own laptops and either walk up to submit or call out their circuit. Set your name once at the top and every submission carries it.</p>
     </article>
+  </div>
+</section>
+
+<!-- ===================== EXTRA TIME (3 variables) ===================== -->
+<section id="panel-extra" class="panel">
+  <div class="extra-header">
+    <div>
+      <h2 class="panel-heading">Extra Time — three variables</h2>
+      <p class="panel-hint">Same gates, same house rules, but now you've got A, B, and C. There are 256 functions of three inputs — we're only hunting six. Flip to the Board below when you want to see what's been found.</p>
+    </div>
+  </div>
+
+  <nav class="subtabs" role="tablist" aria-label="Extra time sections">
+    <button class="subtab active" data-subtab="extra-wb" role="tab" aria-selected="true">Workbench</button>
+    <button class="subtab" data-subtab="extra-board" role="tab" aria-selected="false">Board</button>
+  </nav>
+
+  <div id="subpanel-extra-wb" class="subpanel active">
+    <div class="wb-layout">
+
+      <aside class="palette" aria-label="Component palette">
+        <h2 class="panel-heading">Components</h2>
+        <p class="panel-hint">Same deal as before — click a gate, wire the pins.</p>
+        <div class="palette-grid">
+          <button class="gate-btn" data-wb="extra" data-gate="AND">
+            <svg viewBox="0 0 60 40" class="gate-icon"><path d="M6 4 H28 A16 16 0 0 1 28 36 H6 Z" /></svg>
+            AND
+          </button>
+          <button class="gate-btn" data-wb="extra" data-gate="OR">
+            <svg viewBox="0 0 60 40" class="gate-icon"><path d="M6 4 Q20 4 30 20 Q20 36 6 36 Q14 20 6 4 Z" /></svg>
+            OR
+          </button>
+          <button class="gate-btn" data-wb="extra" data-gate="NOT">
+            <svg viewBox="0 0 60 40" class="gate-icon"><path d="M6 4 L34 20 L6 36 Z" /><circle cx="40" cy="20" r="5" fill="none" stroke="currentColor" stroke-width="3"/></svg>
+            NOT
+          </button>
+        </div>
+
+        <div class="rules-box">
+          <h3>House rules</h3>
+          <ul>
+            <li>No constant TRUE / FALSE source — only <b>A</b>, <b>B</b>, and <b>C</b>.</li>
+            <li>No dangling wires. Every gate input has to be hooked up.</li>
+            <li>A wire can fan out to feed more than one input.</li>
+          </ul>
+        </div>
+
+        <button id="clear-btn-extra" class="ghost-btn">Clear board</button>
+      </aside>
+
+      <div class="canvas-wrap">
+        <div class="canvas-toolbar">
+          <div class="switches">
+            <span class="switches-label">Click A, B, or C on the canvas to flip signals</span>
+          </div>
+          <div class="status" id="status-msg-extra">Build a circuit to see its truth table.</div>
+          <button id="delete-selected-btn-extra" class="ghost-btn small" disabled>Delete selected</button>
+        </div>
+        <svg id="wb-svg-extra" viewBox="0 0 900 460" preserveAspectRatio="xMidYMid meet" aria-label="Three-variable circuit canvas"></svg>
+      </div>
+
+      <aside class="truth-panel" aria-label="Truth table">
+        <h2 class="panel-heading">Truth table</h2>
+        <table id="truth-table-extra" class="truth-table-compact">
+          <thead><tr><th>A</th><th>B</th><th>C</th><th>OUT</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="pattern-readout">
+          Pattern: <span id="pattern-code-extra">????????</span>
+        </div>
+        <div class="submit-block">
+          <p class="submit-as">Submitting as <strong id="submit-as-name-extra">—</strong></p>
+          <button id="submit-btn-extra" class="primary-btn" disabled>Submit to the Board</button>
+          <p id="submit-hint-extra" class="panel-hint">Wire every gate input before you can submit.</p>
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
+  <div id="subpanel-extra-board" class="subpanel">
+    <div class="board-header">
+      <div>
+        <h2 class="panel-heading">Extra Time Board — six targets</h2>
+        <p class="panel-hint">These are the ones worth chasing if you finish the 16 early. Same gallery idea — your name sticks to whatever you submit.</p>
+      </div>
+      <button id="reset-board-btn-extra" class="ghost-btn">Reset board (instructor)</button>
+    </div>
+    <div id="board-grid-extra" class="board-grid"></div>
   </div>
 </section>
 
 </main>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<!-- Username modal -->
+<div id="username-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="username-modal-title">
+  <div class="modal-card modal-card-sm">
+    <h3 id="username-modal-title">What's your name?</h3>
+    <p class="panel-hint">Pick something your instructor will recognize. It gets saved on this browser and goes on every Board submission.</p>
+    <form id="username-form">
+      <input id="username-input" type="text" placeholder="e.g. Maria, Team 3, etc." maxlength="24" autocomplete="nickname" required>
+      <button type="submit" class="primary-btn">Save</button>
+    </form>
+  </div>
+</div>
 
 <!-- Read-only circuit viewer modal -->
 <div id="viewer-modal" class="modal hidden" role="dialog" aria-modal="true">
