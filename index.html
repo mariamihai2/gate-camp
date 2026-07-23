@@ -60,7 +60,7 @@
         <h3>House rules</h3>
         <ul>
           <li>No constant TRUE / FALSE source — only <b>A</b> and <b>B</b>.</li>
-          <li>No dangling wires - every gate input has to be hooked up to something real.</li>
+          <li>No dangling wires. Every gate input has to be hooked up to something real.</li>
           <li>A wire can fan out to feed more than one input.</li>
         </ul>
       </div>
@@ -102,10 +102,10 @@
 <section id="panel-board" class="panel">
   <div class="board-header">
     <div>
-      <h2 class="panel-heading">The Board — 16 functions of 2 variables</h2>
-      <p class="panel-hint">Each card is one of the 16 two-input functions. Find a circuit, submit it — your name shows up on the card.</p>
+      <h2 class="panel-heading">The Board — 16 functions of 2 variables <span class="sync-badge" id="sync-badge-main">connecting…</span></h2>
+      <p class="panel-hint">Each card is one of the 16 two-input functions. Find a circuit, submit it — your name shows up on the card, live, for everyone in the room. Multiple people can claim the same slot.</p>
     </div>
-    <button id="reset-board-btn" class="ghost-btn">Reset board (instructor)</button>
+    <button id="reset-board-btn" class="ghost-btn">Reset board for everyone (instructor)</button>
   </div>
   <div id="board-grid" class="board-grid"></div>
 </section>
@@ -221,10 +221,10 @@
   <div id="subpanel-extra-board" class="subpanel">
     <div class="board-header">
       <div>
-        <h2 class="panel-heading">Extra Time Board — six targets</h2>
-        <p class="panel-hint">These are the ones worth chasing if you finish the 16 early. Same gallery idea — your name sticks to whatever you submit.</p>
+        <h2 class="panel-heading">Extra Time Board — six targets <span class="sync-badge" id="sync-badge-extra">connecting…</span></h2>
+        <p class="panel-hint">These are the ones worth chasing if you finish the 16 early. Same gallery idea — your name sticks to whatever you submit, live, for everyone in the room.</p>
       </div>
-      <button id="reset-board-btn-extra" class="ghost-btn">Reset board (instructor)</button>
+      <button id="reset-board-btn-extra" class="ghost-btn">Reset board for everyone (instructor)</button>
     </div>
     <div id="board-grid-extra" class="board-grid"></div>
   </div>
@@ -256,6 +256,6 @@
   </div>
 </div>
 
-<script src="script.js"></script>
+<script type="module" src="script.js"></script>
 </body>
 </html>

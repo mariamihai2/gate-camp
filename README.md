@@ -19,6 +19,11 @@ functions of two variables.
   (3-variable functions, a completeness proof, De Morgan's laws, minimal
   gate counts).
 
+The Board now syncs **live across every device in the room** via Firebase
+Firestore — a student who submits a circuit on their laptop shows up
+instantly on the projector and on everyone else's screens too, no refresh
+needed.
+
 ## Design choices that match the lecture
 
 - There is **no constant TRUE/FALSE gate** and **no way to leave a gate
@@ -28,9 +33,9 @@ functions of two variables.
 - The truth table and the "submit" pattern are computed by evaluating the
   actual wired graph for all four input combinations — not by simulating
   clicks — so there's no way to submit an incomplete or cyclic circuit.
-- Everything lives in the browser's `localStorage`. There's no server, no
-  accounts, and nothing to keep running after class — open the page and go.
-  See "Multi-device use" below for the tradeoff this implies.
+- Your name is remembered per-browser in `localStorage` (no accounts, no
+  login). The Board itself lives in **Firebase Firestore** and updates in
+  real time for everyone connected — see "Live sync (Firebase)" below.
 
 ## Running it
 
@@ -51,30 +56,76 @@ python3 -m http.server 8000   # or any static file server
 4. Save — GitHub will publish at `https://<user>.github.io/<repo>/` within a
    minute or two.
 
-## Multi-device use
+## Live sync (Firebase)
 
-The Board is stored per-browser (`localStorage`), which is why there's no
-sign-in and nothing to configure — but it also means it's not synced across
-devices out of the box. For a classroom, the simplest setup is:
+The Board is backed by a Firebase project (Firestore) so every device in
+the room sees submissions the instant they happen — no refresh, no manual
+relay.
 
-- One laptop drives the Board on the projector. Students build on their own
-  laptops/tablets in the Workbench, then walk you through their circuit (or
-  call out the gate list) so you can rebuild it in ten seconds and hit
-  submit — or just have them come up and submit it themselves on the
-  projector machine.
+**How it's wired up:**
 
-If you want true cross-device sync so every student can submit from their
-own seat, you'd need to swap `localStorage` in `script.js` (see
-`loadBoard`/`saveBoard`) for a small shared backend — e.g. Firebase Realtime
-Database or a similar free-tier service — that's a deliberate scope cut to
-keep this a zero-infrastructure static site.
+- `script.js` is loaded as an ES module (`<script type="module" ...>` in
+  `index.html`) so it can `import` the Firebase SDK straight from Google's
+  CDN — no npm install, no build step.
+- Each Workbench (the 2-variable one and the 3-variable "Extra Time" one)
+  writes submissions into its own Firestore **collection**, named after its
+  `storageKey` (`gatecamp_board_v1` and `gatecamp_board_3v_v1`). Every
+  submitted circuit is its own document, so two students submitting at the
+  same instant never overwrite each other.
+- Each Workbench subscribes to its collection with `onSnapshot`, so
+  `renderBoard()` re-runs automatically whenever anyone, anywhere, adds or
+  removes a submission. The small dot next to each Board's heading shows
+  `connecting…`, `live`, or `sync error` so you can tell at a glance whether
+  the room is actually synced.
+- "Reset board" now deletes every document in that collection — this
+  clears the Board **for everyone**, not just the browser you clicked it in.
+- Your display name still lives in per-browser `localStorage` — that part
+  is deliberately *not* synced, since it's specific to you, not the room.
+
+**Setting up your own Firebase project:**
+
+1. Create a project at [console.firebase.google.com](https://console.firebase.google.com).
+2. Add a Web App and copy its `firebaseConfig` object.
+3. Paste it over the `firebaseConfig` object near the top of `script.js`.
+4. In the console, go to **Firestore Database → Create database**, and
+   start it in test mode (or use rules like the ones below).
+5. Firestore's default rules deny all access — for a classroom exercise
+   with no login system, open (but time-boxed) rules are the simplest
+   option. In **Firestore Database → Rules**, something like:
+
+   ```
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /gatecamp_board_v1/{doc} {
+         allow read, write: if request.time < timestamp.date(2026, 12, 31);
+       }
+       match /gatecamp_board_3v_v1/{doc} {
+         allow read, write: if request.time < timestamp.date(2026, 12, 31);
+       }
+     }
+   }
+   ```
+
+   Adjust the collection names and expiry date to match your own
+   `storageKey`s and event date. Because these rules are wide open to
+   anyone with your `firebaseConfig` (which ships in the client-side JS
+   and can't really be kept secret), don't reuse this Firebase project for
+   anything sensitive.
+
+**Offline/no-Firebase fallback:** if you'd rather not stand up a Firebase
+project at all (e.g. running this fully offline), the simplest fallback is
+to revert `boardCollection()`/`startBoardSync()`/`submit()`/`resetBoard()`
+in `script.js` back to reading/writing a `board` object in `localStorage` —
+that's exactly how earlier versions of this app worked, just per-browser
+instead of live.
 
 ## Files
 
 - `index.html` — page structure and the three tabs (Workbench / Board / Guide)
 - `style.css` — the whole visual design (PCB / breadboard theme)
 - `script.js` — circuit graph, evaluation engine, canvas rendering and
-  interaction, board persistence
+  interaction, Firebase Firestore live board sync
 
 ## License
 

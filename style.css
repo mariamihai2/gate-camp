@@ -214,6 +214,20 @@ main{max-width:1360px; margin:0 auto; padding:22px 24px 60px;}
 .primary-btn:disabled{background:var(--panel-2); color:var(--text-faint); cursor:not-allowed;}
 
 /* ---------- board ---------- */
+.sync-badge{
+  display:inline-flex; align-items:center; gap:6px;
+  font-family:var(--mono); font-size:10.5px; font-weight:500; letter-spacing:.04em;
+  color:var(--text-faint); vertical-align:middle; margin-left:10px;
+}
+.sync-badge::before{
+  content:""; width:7px; height:7px; border-radius:50%;
+  background:var(--text-faint); flex-shrink:0;
+}
+.sync-badge.live{color:var(--signal-on);}
+.sync-badge.live::before{background:var(--signal-on); box-shadow:0 0 6px var(--signal-on-glow);}
+.sync-badge.error{color:var(--danger);}
+.sync-badge.error::before{background:var(--danger);}
+
 .board-header{display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:18px;}
 .board-grid{
   display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:14px;

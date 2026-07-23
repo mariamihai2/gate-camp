@@ -1,7 +1,41 @@
 /* =========================================================
    Gate Camp — logic circuits workbench
-   Vanilla JS, no build step. Board + username in localStorage.
+   Vanilla JS, no build step. Username stays in localStorage
+   (per-browser); the Board is synced live for everyone in the
+   room via Firebase Firestore.
    ========================================================= */
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import { getAnalytics, isSupported as analyticsIsSupported } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-analytics.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  onSnapshot,
+  getDocs,
+  writeBatch,
+  serverTimestamp,
+} from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyD3ZUUyghHJjDhIOd0Ac6GnzFSQ0Rnwk5I",
+  authDomain: "circuits-e3654.firebaseapp.com",
+  projectId: "circuits-e3654",
+  storageBucket: "circuits-e3654.firebasestorage.app",
+  messagingSenderId: "729136075034",
+  appId: "1:729136075034:web:e37329ab5c6b590e599ca3",
+  measurementId: "G-0G3WS5L6C2",
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+
+// Analytics only works in some environments (e.g. it needs cookies/https);
+// don't let it block the app if it's unavailable.
+analyticsIsSupported()
+  .then((supported) => { if (supported) getAnalytics(firebaseApp); })
+  .catch(() => {});
 
 const SVGNS = "http://www.w3.org/2000/svg";
 
@@ -41,13 +75,13 @@ const FUNCTION_NAMES_3 = {
   "00010111": "MAJORITY (2-of-3)",
   "01101000": "EXACTLY ONE",
   "01101001": "PARITY (XOR all 3)",
-  "00111000": "A XOR B",
+  "00111100": "A XOR B",
   "00000001": "A AND B AND C",
   "01111111": "A OR B OR C",
 };
 
 const PATTERN_ORDER_3 = [
-  "00010111","01101000","01101001","00111000","00000001","01111111",
+  "00010111","01101000","01101001","00111100","00000001","01111111",
 ];
 
 const TRUTH_ROWS_3 = [];
@@ -182,6 +216,7 @@ class Workbench {
     this.deleteBtn = document.getElementById(opts.deleteBtnId);
     this.clearBtn = document.getElementById(opts.clearBtnId);
     this.resetBoardBtn = opts.resetBoardBtnId ? document.getElementById(opts.resetBoardBtnId) : null;
+    this.syncBadge = opts.syncBadgeId ? document.getElementById(opts.syncBadgeId) : null;
 
     this.circuit = this.freshCircuit();
     this.gateSeq = 0;
@@ -192,7 +227,11 @@ class Workbench {
     this.dragOffset = { x: 0, y: 0 };
     this.ghostPointer = null;
 
+    // Live board state, kept in sync with Firestore. Keyed by pattern -> array of entries.
+    this.boardCache = {};
+
     this.bindEvents();
+    this.startBoardSync();
   }
 
   freshCircuit() {
@@ -345,6 +384,7 @@ class Workbench {
       if (e.target.classList.contains("pin")) return;
       const startX = e.clientX, startY = e.clientY;
       let moved = false;
+      this.svg.setPointerCapture(e.pointerId);
       this.startDrag(node.id, e);
       this.selectNode(node.id);
 
@@ -477,12 +517,10 @@ class Workbench {
   }
 
   updateSubmitState(pattern) {
+    if (pattern === undefined) pattern = tableToPattern(this.computeTruthTable());
     const hasName = !!getUsername();
-    if (pattern && hasName) {
-      this.submitBtn.disabled = false;
-    } else {
-      this.submitBtn.disabled = true;
-    }
+    const isKnown = !!(pattern && this.functionNames[pattern]);
+    this.submitBtn.disabled = !(isKnown && hasName);
   }
 
   renderTruthTable() {
@@ -524,18 +562,53 @@ class Workbench {
     }
   }
 
-  loadBoard() {
-    try {
-      const raw = localStorage.getItem(this.storageKey);
-      return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
+  // Firestore collection backing this Board. Each submitted circuit is its
+  // own document, so simultaneous submissions from different students never
+  // clobber each other.
+  boardCollection() {
+    return collection(db, this.storageKey);
   }
 
-  saveBoard(board) {
-    localStorage.setItem(this.storageKey, JSON.stringify(board));
+  setSyncBadge(state, label) {
+    if (!this.syncBadge) return;
+    this.syncBadge.classList.remove("live", "error");
+    if (state) this.syncBadge.classList.add(state);
+    this.syncBadge.textContent = label;
   }
 
-  submit() {
+  startBoardSync() {
+    this.setSyncBadge(null, "connecting…");
+    onSnapshot(
+      this.boardCollection(),
+      (snapshot) => {
+        const board = {};
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const pattern = data.pattern;
+          if (!pattern) return;
+          if (!board[pattern]) board[pattern] = [];
+          board[pattern].push({
+            id: docSnap.id,
+            name: data.name,
+            ts: typeof data.ts === "number" ? data.ts : 0,
+            nodes: data.nodes,
+            wires: data.wires,
+          });
+        });
+        Object.values(board).forEach(entries => entries.sort((a, b) => a.ts - b.ts));
+        this.boardCache = board;
+        this.setSyncBadge("live", "live");
+        this.renderBoard();
+      },
+      (err) => {
+        console.error("Board sync error:", err);
+        this.setSyncBadge("error", "sync error");
+        toast("Lost the live connection to the Board — check your network.");
+      }
+    );
+  }
+
+  async submit() {
     const rows = this.computeTruthTable();
     const pattern = tableToPattern(rows);
     if (!pattern) return;
@@ -552,31 +625,45 @@ class Workbench {
       return;
     }
 
-    const board = this.loadBoard();
-    if (!board[pattern]) board[pattern] = [];
-    board[pattern].push({
-      id: "s" + Date.now() + Math.floor(Math.random() * 1000),
-      name: username,
-      ts: Date.now(),
-      nodes: JSON.parse(JSON.stringify(this.circuit.nodes)),
-      wires: JSON.parse(JSON.stringify(this.circuit.wires)),
-    });
-    this.saveBoard(board);
-    toast(`${username} added ${this.functionNames[pattern]} to the Board.`);
+    this.submitBtn.disabled = true;
+    this.submitHint.textContent = "Sending to the Board…";
 
-    if (this.boardTab) document.querySelector(this.boardTab).click();
-    else this.renderBoard();
+    try {
+      await addDoc(this.boardCollection(), {
+        pattern,
+        name: username,
+        ts: Date.now(),
+        createdAt: serverTimestamp(),
+        nodes: JSON.parse(JSON.stringify(this.circuit.nodes)),
+        wires: JSON.parse(JSON.stringify(this.circuit.wires)),
+      });
+      toast(`${username} added ${this.functionNames[pattern]} to the Board.`);
+      if (this.boardTab) document.querySelector(this.boardTab).click();
+      else this.renderBoard();
+    } catch (err) {
+      console.error("Submit failed:", err);
+      toast("Couldn't reach the Board — check your connection and try again.");
+    } finally {
+      this.updateSubmitState();
+    }
   }
 
-  resetBoard() {
-    if (!confirm("Reset this Board on this device? Can't undo.")) return;
-    localStorage.removeItem(this.storageKey);
-    this.renderBoard();
-    toast("Board reset.");
+  async resetBoard() {
+    if (!confirm("Reset this Board for everyone in the room? Can't undo.")) return;
+    try {
+      const snapshot = await getDocs(this.boardCollection());
+      const batch = writeBatch(db);
+      snapshot.forEach(docSnap => batch.delete(docSnap.ref));
+      await batch.commit();
+      toast("Board reset for everyone.");
+    } catch (err) {
+      console.error("Reset failed:", err);
+      toast("Couldn't reset the Board — check your connection and try again.");
+    }
   }
 
   renderBoard() {
-    const board = this.loadBoard();
+    const board = this.boardCache;
     const grid = document.getElementById(this.boardGridId);
     grid.innerHTML = "";
 
@@ -639,7 +726,6 @@ class Workbench {
     });
 
     this.svg.addEventListener("pointerup", () => { this.dragNode = null; });
-    this.svg.addEventListener("pointerleave", () => { this.dragNode = null; });
 
     this.svg.addEventListener("pointerdown", (e) => {
       if (e.target === this.svg) {
@@ -792,6 +878,7 @@ mainWb = new Workbench({
   deleteBtnId: "delete-selected-btn",
   clearBtnId: "clear-btn",
   resetBoardBtnId: "reset-board-btn",
+  syncBadgeId: "sync-badge-main",
 });
 
 extraWb = new Workbench({
@@ -811,6 +898,7 @@ extraWb = new Workbench({
   deleteBtnId: "delete-selected-btn-extra",
   clearBtnId: "clear-btn-extra",
   resetBoardBtnId: "reset-board-btn-extra",
+  syncBadgeId: "sync-badge-extra",
 });
 
 mainWb.refreshAll();
