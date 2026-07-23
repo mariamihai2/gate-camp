@@ -4,8 +4,6 @@ A static, no-backend interactive site for teaching a class how to build boolean
 circuits out of AND / OR / NOT gates, then race to find circuits for all 16
 functions of two variables.
 
-**[Live workbench →](#)** *(replace with your GitHub Pages URL once deployed — see below)*
-
 ## What's here
 
 - **Workbench** — drag AND/OR/NOT gates onto a canvas, wire them up (a wire
